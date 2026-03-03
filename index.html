@@ -114,7 +114,7 @@
   }
 
   .cell {
-    background: #000000;
+    background: #000000 !important;
     padding: 0.6rem 0.8rem;
     display: flex; flex-direction: column; justify-content: center;
     border-left: 2px solid transparent; gap: 0.15rem;
@@ -302,10 +302,10 @@ function renderDashboard(devices,meteo){
   }
   // Build cells
   const cells=[];
-  // Indoor
+  const leftCells=[], rightCells=[];
   if(device.dashboard_data){
     const d=device.dashboard_data;
-    cells.push({cls:'indoor', name:device.module_name||'Salon',
+    leftCells.push({cls:'indoor', name:device.module_name||'Salon',
       temp:fmt(d.Temperature), unit:'°',
       subs:[
         d.Humidity!=null?`💧 ${d.Humidity}%`:'',
@@ -318,7 +318,7 @@ function renderDashboard(devices,meteo){
   for(const mod of(device.modules||[])){
     const d=mod.dashboard_data||{};
     if(mod.type==='NAModule4'){
-      cells.push({cls:'bureau', name:mod.module_name||'Pièce',
+      leftCells.push({cls:'bureau', name:mod.module_name||'Pièce',
         temp:fmt(d.Temperature), unit:'°',
         subs:[
           d.Humidity!=null?`💧 ${d.Humidity}%`:'',
@@ -327,7 +327,7 @@ function renderDashboard(devices,meteo){
       });
     } else if(mod.type==='NAModule3'){
       const rain=d.Rain!=null?fmt(d.Rain)+' mm/h':'—';
-      cells.push({cls:'pluie', name:'🌧️ Pluie',
+      rightCells.push({cls:'pluie', name:'🌧️ Pluie',
         temp:rain, unit:'',
         subs:[
           d.sum_rain_1!=null?`1h ${fmt(d.sum_rain_1)}mm`:'',
@@ -337,7 +337,7 @@ function renderDashboard(devices,meteo){
     } else if(mod.type==='NAModule2'){
       const wind=d.WindStrength!=null?`${fmt(d.WindStrength)} km/h`:'—';
       const dir=d.WindAngle!=null?windDir(d.WindAngle):'';
-      cells.push({cls:'vent', name:'💨 Vent',
+      rightCells.push({cls:'vent', name:'💨 Vent',
         temp:wind, unit:'',
         subs:[
           dir?`Direction ${dir}`:'',
@@ -347,9 +347,13 @@ function renderDashboard(devices,meteo){
     }
   }
 
+  const maxLen=Math.max(leftCells.length,rightCells.length);
+  for(let i=0;i<maxLen;i++){ if(leftCells[i])cells.push(leftCells[i]); if(rightCells[i])cells.push(rightCells[i]); }
+
   cells.forEach(c=>{
     const el=document.createElement('div');
     el.className='cell '+c.cls;
+    el.style.background='#000000';
     el.innerHTML=`
       <div class="cell-name">${c.name}</div>
       <div class="cell-temp">${c.temp}<span>${c.unit}</span></div>
@@ -361,6 +365,7 @@ function renderDashboard(devices,meteo){
   // Outdoor big cell (bottom right)
   const outCell = document.createElement('div');
   outCell.className = 'cell outdoor-big';
+  outCell.style.background='#000000';
   const fl = feelsLike(outdoorTemp, outdoorHum, outdoorWindSpeed);
   const feelsStr = (fl !== fmt(outdoorTemp)) ? `Ressenti ${fl}°` : '';
   outCell.innerHTML = `
