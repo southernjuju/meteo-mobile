@@ -56,7 +56,7 @@
   /* LEFT COLUMN */
   .left-col {
     display: flex; flex-direction: column;
-    justify-content: space-evenly; align-items: center;
+    justify-content: center; align-items: center; gap: 0.5rem;
     padding: 1rem;
     border-right: 1px solid rgba(255,255,255,0.06);
     background: rgba(0,0,0,0.25);
@@ -76,11 +76,11 @@
     position: relative; z-index: 1;
   }
   .filling-digits { display: flex; gap: 4px; }
-  .f-digit { position: relative; width: 48px; height: 60px; }
+  .f-digit { position: relative; width: 58px; height: 72px; }
   .f-outline, .f-fill {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'DM Mono', monospace; font-size: 3.8rem; font-weight: 400;
+    font-family: 'DM Mono', monospace; font-size: 4.6rem; font-weight: 400;
     line-height: 1; user-select: none;
   }
   .f-outline { color: transparent; -webkit-text-stroke: 1px rgba(212,168,32,0.2); }
@@ -138,13 +138,25 @@
   .co2-med  { color: #d4a820; }
   .co2-bad  { color: #f1948a; }
 
+  .cell.outdoor-big {
+    border-color: #5dade2;
+    align-items: center; justify-content: center;
+  }
+  .outdoor-big-temp {
+    font-size: 2.5rem; font-weight: 800; color: #5ab8e0; line-height: 1; text-align: center;
+  }
+  .outdoor-big-temp span { font-size: 1.2rem; opacity: 0.4; }
+  .outdoor-big-label { font-size: 0.48rem; font-family: 'DM Mono', monospace; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin-top: 0.2rem; }
+  .outdoor-big-feels { font-size: 0.72rem; color: rgba(255,255,255,0.35); font-family: 'DM Mono', monospace; text-align: center; margin-top: 0.2rem; }
+
   /* LOGOUT */
   .logout-btn {
-    position: fixed; top: 0.6rem; right: 0.6rem; z-index: 50;
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.4); padding: 0.25rem 0.7rem;
-    border-radius: 20px; font-family: 'Nunito', sans-serif;
-    font-size: 0.65rem; cursor: pointer;
+    position: fixed; top: 0.7rem; right: 0.7rem; z-index: 50;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.25); width: 22px; height: 22px;
+    border-radius: 50%; font-size: 0.65rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
   }
 </style>
 </head>
@@ -167,7 +179,7 @@
 
 <!-- DASHBOARD -->
 <div id="dashboard">
-  <button class="logout-btn" onclick="logout()">Déconnexion</button>
+  <button class="logout-btn" onclick="logout()" title="Déconnexion">×</button>
 
   <!-- LEFT -->
   <div class="left-col">
@@ -183,11 +195,7 @@
     </div>
     <div class="clock-date" id="clock-date"></div>
 
-    <div class="out-block" id="out-block">
-      <div class="out-temp" id="out-temp">—<span>°C</span></div>
-      <div class="out-label">Extérieur</div>
-      <div class="out-feels" id="out-feels"></div>
-    </div>
+
   </div>
 
   <!-- RIGHT -->
@@ -197,7 +205,7 @@
 <script>
 const CLIENT_ID     = '69a01b0127352105b600c628';
 const CLIENT_SECRET = 'XIWW9GLp6M13ssyarLGHENlptMMnP';
-const REDIRECT_URI  = 'https://southernjuju.github.io/meteo-mobile';
+const REDIRECT_URI  = 'https://southernjuju.github.io/meteo/mobile.html';
 const SCOPE         = 'read_station';
 
 function saveTokens(a,r,e){localStorage.setItem('nm_access',a);localStorage.setItem('nm_refresh',r);localStorage.setItem('nm_expiry',e);}
@@ -357,13 +365,25 @@ function renderDashboard(devices,meteo){
     `;
     grid.appendChild(el);
   });
+
+  // Outdoor big cell (bottom right)
+  const outCell = document.createElement('div');
+  outCell.className = 'cell outdoor-big';
+  const fl = feelsLike(outdoorTemp, outdoorHum, outdoorWindSpeed);
+  const feelsStr = (fl !== fmt(outdoorTemp)) ? `Ressenti ${fl}°` : '';
+  outCell.innerHTML = `
+    <div class="outdoor-big-temp" id="out-temp">${fmt(outdoorTemp)}<span>°C</span></div>
+    <div class="outdoor-big-label">Extérieur</div>
+    ${feelsStr ? `<div class="outdoor-big-feels">${feelsStr}</div>` : ''}
+  `;
+  grid.appendChild(outCell);
 }
 
 // CLOCK
 function pad(n){return n.toString().padStart(2,'0');}
 function updateClock(){
   const now=new Date();
-  const h=now.getHours(), m=now.getMinutes(), s=now.getSeconds();
+  const h=now.getHours(), m=now.getMinutes(), s=0;
   const hh=pad(h), mm=pad(m);
   ['fh1o','fh1f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=hh[0];});
   ['fh2o','fh2f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=hh[1];});
@@ -376,7 +396,7 @@ function updateClock(){
   const dateEl=document.getElementById('clock-date');
   if(dateEl) dateEl.textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();
 }
-setInterval(updateClock,1000);
+setInterval(updateClock,60000);
 updateClock();
 
 // Auto refresh
