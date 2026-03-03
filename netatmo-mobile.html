@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Netatmo Mobile</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    height: 100vh; overflow: hidden;
+    background: #060610;
+    transition: background 2s ease;
+  }
+
+  /* AUTH */
+  #auth-screen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; gap: 1.5rem; padding: 2rem;
+    background: linear-gradient(160deg, #060610, #0d1b3e);
+  }
+  .auth-icon { font-size: 3rem; }
+  .auth-title { font-size: 1.8rem; font-weight: 800; color: white; }
+  .auth-subtitle { font-size: 0.9rem; color: rgba(255,255,255,0.5); text-align: center; max-width: 280px; line-height: 1.6; }
+  .auth-btn {
+    background: rgba(255,255,255,0.15); color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.9rem 2.5rem; border-radius: 50px;
+    font-family: 'Nunito', sans-serif; font-size: 0.95rem; font-weight: 800;
+    cursor: pointer;
+  }
+  .error-msg { color: #f1948a; font-size: 0.8rem; display: none; }
+
+  /* LOADING */
+  #loading {
+    display: none; position: fixed; inset: 0;
+    align-items: center; justify-content: center; flex-direction: column; gap: 1rem; z-index: 100;
+    background: rgba(0,0,0,0.5);
+  }
+  .loading-spinner {
+    width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+
+  /* DASHBOARD */
+  #dashboard {
+    display: none; height: 100vh;
+    grid-template-columns: 220px 1fr;
+    position: relative; z-index: 1;
+  }
+
+  /* LEFT COLUMN */
+  .left-col {
+    display: flex; flex-direction: column;
+    justify-content: space-evenly; align-items: center;
+    padding: 1rem;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.25);
+    position: relative; overflow: hidden;
+  }
+  .left-col::before {
+    content: '';
+    position: absolute; width: 250px; height: 250px;
+    background: radial-gradient(circle, rgba(212,168,32,0.07) 0%, transparent 70%);
+    top: 30%; left: 50%; transform: translate(-50%,-50%);
+    border-radius: 50%; pointer-events: none;
+  }
+
+  /* FILLING CLOCK */
+  .filling-clock {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    position: relative; z-index: 1;
+  }
+  .filling-digits { display: flex; gap: 4px; }
+  .f-digit { position: relative; width: 48px; height: 60px; }
+  .f-outline, .f-fill {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 3.8rem; font-weight: 400;
+    line-height: 1; user-select: none;
+  }
+  .f-outline { color: transparent; -webkit-text-stroke: 1px rgba(212,168,32,0.2); }
+  .f-fill { color: #d4a820; }
+
+  .clock-date {
+    font-family: 'DM Mono', monospace; font-size: 0.5rem;
+    color: rgba(255,255,255,0.25); text-transform: uppercase;
+    letter-spacing: 0.12em; text-align: center;
+    margin-top: 0.4rem; position: relative; z-index: 1;
+  }
+
+  /* OUTDOOR TEMP */
+  .out-block {
+    text-align: center; position: relative; z-index: 1;
+    padding-top: 0.8rem; border-top: 1px solid rgba(255,255,255,0.06);
+    width: 100%;
+  }
+  .out-temp { font-size: 2.2rem; font-weight: 800; color: #5ab8e0; line-height: 1; }
+  .out-temp span { font-size: 1.1rem; opacity: 0.4; }
+  .out-label { font-size: 0.48rem; font-family: 'DM Mono', monospace; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.1rem; }
+  .out-feels { font-size: 0.72rem; color: rgba(255,255,255,0.35); margin-top: 0.2rem; font-family: 'DM Mono', monospace; }
+
+  /* RIGHT GRID */
+  .right-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(255,255,255,0.04);
+  }
+
+  .cell {
+    background: #0a0a18;
+    padding: 0.6rem 0.8rem;
+    display: flex; flex-direction: column; justify-content: center;
+    border-left: 2px solid transparent; gap: 0.15rem;
+    position: relative; overflow: hidden;
+  }
+  .cell.indoor  { border-color: #58d68d; }
+  .cell.chambre, .cell.bureau { border-color: #f0b27a; }
+  .cell.pluie   { border-color: #7fb3d3; }
+  .cell.vent    { border-color: #bb8fce; }
+  .cell.outdoor { border-color: #5dade2; }
+
+  .cell-name { font-size: 0.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.3); }
+  .cell-temp { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+  .cell.indoor .cell-temp  { color: #5dd890; }
+  .cell.chambre .cell-temp, .cell.bureau .cell-temp { color: #e8bc7a; }
+  .cell.pluie .cell-temp, .cell.vent .cell-temp { color: rgba(255,255,255,0.7); font-size: 1rem; line-height: 1.4; }
+  .cell-temp span { font-size: 0.9rem; opacity: 0.4; }
+  .cell-sub { font-size: 0.58rem; color: rgba(255,255,255,0.3); }
+
+  .co2-good { color: #5dd890; }
+  .co2-med  { color: #d4a820; }
+  .co2-bad  { color: #f1948a; }
+
+  /* LOGOUT */
+  .logout-btn {
+    position: fixed; top: 0.6rem; right: 0.6rem; z-index: 50;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.4); padding: 0.25rem 0.7rem;
+    border-radius: 20px; font-family: 'Nunito', sans-serif;
+    font-size: 0.65rem; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-icon">🌤️</div>
+  <div class="auth-title">Météo</div>
+  <div class="auth-subtitle">Connectez-vous avec votre compte Netatmo.</div>
+  <button class="auth-btn" onclick="startAuth()">Se connecter</button>
+  <div class="error-msg" id="error-msg">Erreur. Veuillez réessayer.</div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Chargement…</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <button class="logout-btn" onclick="logout()">Déconnexion</button>
+
+  <!-- LEFT -->
+  <div class="left-col">
+    <div class="filling-clock">
+      <div class="filling-digits">
+        <div class="f-digit"><div class="f-outline" id="fh1o">0</div><div class="f-fill" id="fh1f">0</div></div>
+        <div class="f-digit"><div class="f-outline" id="fh2o">0</div><div class="f-fill" id="fh2f">0</div></div>
+      </div>
+      <div class="filling-digits">
+        <div class="f-digit"><div class="f-outline" id="fm1o">0</div><div class="f-fill" id="fm1f">0</div></div>
+        <div class="f-digit"><div class="f-outline" id="fm2o">0</div><div class="f-fill" id="fm2f">0</div></div>
+      </div>
+    </div>
+    <div class="clock-date" id="clock-date"></div>
+
+    <div class="out-block" id="out-block">
+      <div class="out-temp" id="out-temp">—<span>°C</span></div>
+      <div class="out-label">Extérieur</div>
+      <div class="out-feels" id="out-feels"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-grid" id="right-grid"></div>
+</div>
+
+<script>
+const CLIENT_ID     = '69a01b0127352105b600c628';
+const CLIENT_SECRET = 'XIWW9GLp6M13ssyarLGHENlptMMnP';
+const REDIRECT_URI  = 'https://southernjuju.github.io/meteo-mobile';
+const SCOPE         = 'read_station';
+
+function saveTokens(a,r,e){localStorage.setItem('nm_access',a);localStorage.setItem('nm_refresh',r);localStorage.setItem('nm_expiry',e);}
+function getAccessToken(){return localStorage.getItem('nm_access');}
+function getRefreshToken(){return localStorage.getItem('nm_refresh');}
+function getExpiry(){return parseInt(localStorage.getItem('nm_expiry')||'0');}
+function clearTokens(){['nm_access','nm_refresh','nm_expiry'].forEach(k=>localStorage.removeItem(k));}
+
+function startAuth(){
+  const state=Math.random().toString(36).substring(2);
+  sessionStorage.setItem('oauth_state',state);
+  window.location.href=`https://api.netatmo.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&prompt=consent`;
+}
+
+async function handleCallback(code){
+  showLoading(true);
+  try{
+    const resp=await fetch('https://api.netatmo.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',client_id:CLIENT_ID,client_secret:CLIENT_SECRET,code,redirect_uri:REDIRECT_URI})});
+    const data=await resp.json();
+    if(data.access_token){saveTokens(data.access_token,data.refresh_token,Date.now()+data.expires_in*1000);window.history.replaceState({},'',window.location.pathname);await loadDashboard();}
+    else showError();
+  }catch(e){showError();}
+  showLoading(false);
+}
+
+async function refreshToken(){
+  const resp=await fetch('https://api.netatmo.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',client_id:CLIENT_ID,client_secret:CLIENT_SECRET,refresh_token:getRefreshToken()})});
+  const data=await resp.json();
+  if(data.access_token){saveTokens(data.access_token,data.refresh_token,Date.now()+data.expires_in*1000);return data.access_token;}
+  throw new Error('Refresh failed');
+}
+
+async function getValidToken(){
+  if(getExpiry()-Date.now()<60000)return await refreshToken();
+  return getAccessToken();
+}
+
+async function fetchOpenMeteo(lat,lon){
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=windspeed_10m&daily=sunrise,sunset&forecast_days=1&timezone=auto&models=meteofrance_seamless`;
+    const resp=await fetch(url);
+    const data=await resp.json();
+    const result={windSpeed:null};
+    if(data.hourly&&data.hourly.windspeed_10m) result.windSpeed=data.hourly.windspeed_10m[new Date().getHours()];
+    return result;
+  }catch(e){return {};}
+}
+
+function feelsLike(temp,humidity,windKmh){
+  const wind=windKmh||0;
+  if(temp<=10&&wind>4.8){
+    const wc=13.12+0.6215*temp-11.37*Math.pow(wind,0.16)+0.3965*temp*Math.pow(wind,0.16);
+    return Math.round(wc*10)/10;
+  } else if(temp>=27){
+    const hi=-8.78469475556+1.61139411*temp+2.3385248*humidity-0.14611605*temp*humidity-0.012308094*temp*temp-0.016424828*humidity*humidity+0.002211732*temp*temp*humidity+0.00072546*temp*humidity*humidity-0.000003582*temp*temp*humidity*humidity;
+    return Math.round(hi*10)/10;
+  }
+  return fmt(temp);
+}
+
+function fmt(v){if(v==null)return'—';return typeof v==='number'?(Number.isInteger(v)?v:v.toFixed(1)):v;}
+function co2Class(v){return v<1000?'co2-good':v<1500?'co2-med':'co2-bad';}
+function windDir(deg){return['N','NE','E','SE','S','SO','O','NO'][Math.round(deg/45)%8];}
+
+async function loadDashboard(){
+  try{
+    const token=await getValidToken();
+    const resp=await fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false',{headers:{Authorization:`Bearer ${token}`}});
+    const data=await resp.json();
+    if(data.body&&data.body.devices){
+      const device=data.body.devices[0];
+      const lat=device.place&&device.place.location?device.place.location[1]:47.28;
+      const lon=device.place&&device.place.location?device.place.location[0]:-1.78;
+      const meteo=await fetchOpenMeteo(lat,lon);
+      renderDashboard(data.body.devices,meteo);
+    }
+  }catch(e){console.error(e);}
+}
+
+function renderDashboard(devices,meteo){
+  document.getElementById('auth-screen').style.display='none';
+  const dash=document.getElementById('dashboard');
+  dash.style.display='grid';
+
+  const device=devices[0];
+  const grid=document.getElementById('right-grid');
+  grid.innerHTML='';
+
+  // Outdoor temp
+  let outdoorTemp=null, outdoorHum=null, outdoorWindSpeed=meteo.windSpeed;
+  for(const mod of(device.modules||[])){
+    const d=mod.dashboard_data||{};
+    if(mod.type==='NAModule1'){ outdoorTemp=d.Temperature; outdoorHum=d.Humidity; }
+  }
+  if(outdoorTemp!=null){
+    document.getElementById('out-temp').innerHTML=fmt(outdoorTemp)+'<span>°C</span>';
+    const fl=feelsLike(outdoorTemp,outdoorHum,outdoorWindSpeed);
+    const feelsEl=document.getElementById('out-feels');
+    if(fl!==fmt(outdoorTemp)) feelsEl.textContent='Ressenti '+fl+'°';
+    else feelsEl.textContent='';
+  }
+
+  // Build cells
+  const cells=[];
+  // Indoor
+  if(device.dashboard_data){
+    const d=device.dashboard_data;
+    cells.push({cls:'indoor', name:device.module_name||'Salon',
+      temp:fmt(d.Temperature), unit:'°',
+      subs:[
+        d.Humidity!=null?`💧 ${d.Humidity}%`:'',
+        d.CO2!=null?`<span class="${co2Class(d.CO2)}">CO₂ ${d.CO2}ppm</span>`:'',
+        d.Noise!=null?`🔊 ${d.Noise}dB`:''
+      ].filter(Boolean)
+    });
+  }
+  // Extra modules
+  for(const mod of(device.modules||[])){
+    const d=mod.dashboard_data||{};
+    if(mod.type==='NAModule4'){
+      cells.push({cls:'bureau', name:mod.module_name||'Pièce',
+        temp:fmt(d.Temperature), unit:'°',
+        subs:[
+          d.Humidity!=null?`💧 ${d.Humidity}%`:'',
+          d.CO2!=null?`<span class="${co2Class(d.CO2)}">CO₂ ${d.CO2}ppm</span>`:''
+        ].filter(Boolean)
+      });
+    } else if(mod.type==='NAModule3'){
+      const rain=d.Rain!=null?fmt(d.Rain)+' mm/h':'—';
+      cells.push({cls:'pluie', name:'🌧️ Pluie',
+        temp:rain, unit:'',
+        subs:[
+          d.sum_rain_1!=null?`1h ${fmt(d.sum_rain_1)}mm`:'',
+          d.sum_rain_24!=null?`24h ${fmt(d.sum_rain_24)}mm`:''
+        ].filter(Boolean)
+      });
+    } else if(mod.type==='NAModule2'){
+      const wind=d.WindStrength!=null?`${fmt(d.WindStrength)} km/h`:'—';
+      const dir=d.WindAngle!=null?windDir(d.WindAngle):'';
+      cells.push({cls:'vent', name:'💨 Vent',
+        temp:wind, unit:'',
+        subs:[
+          dir?`Direction ${dir}`:'',
+          d.GustStrength!=null?`Rafales ${fmt(d.GustStrength)}km/h`:''
+        ].filter(Boolean)
+      });
+    }
+  }
+
+  cells.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='cell '+c.cls;
+    el.innerHTML=`
+      <div class="cell-name">${c.name}</div>
+      <div class="cell-temp">${c.temp}<span>${c.unit}</span></div>
+      ${c.subs.map(s=>`<div class="cell-sub">${s}</div>`).join('')}
+    `;
+    grid.appendChild(el);
+  });
+}
+
+// CLOCK
+function pad(n){return n.toString().padStart(2,'0');}
+function updateClock(){
+  const now=new Date();
+  const h=now.getHours(), m=now.getMinutes(), s=now.getSeconds();
+  const hh=pad(h), mm=pad(m);
+  ['fh1o','fh1f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=hh[0];});
+  ['fh2o','fh2f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=hh[1];});
+  ['fm1o','fm1f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=mm[0];});
+  ['fm2o','fm2f'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=mm[1];});
+  const hourPct=(h+m/60)/24*100;
+  const minPct=(m+s/60)/60*100;
+  ['fh1f','fh2f'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.clipPath=`inset(${100-hourPct}% 0 0 0)`;});
+  ['fm1f','fm2f'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.clipPath=`inset(${100-minPct}% 0 0 0)`;});
+  const dateEl=document.getElementById('clock-date');
+  if(dateEl) dateEl.textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// Auto refresh
+setInterval(async()=>{if(getAccessToken())await loadDashboard();},5*60*1000);
+
+function showLoading(v){document.getElementById('loading').style.display=v?'flex':'none';}
+function showError(){showLoading(false);document.getElementById('error-msg').style.display='block';}
+function logout(){clearTokens();window.location.reload();}
+
+async function init(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(code){await handleCallback(code);return;}
+  if(getAccessToken()){showLoading(true);await loadDashboard();showLoading(false);return;}
+}
+init();
+</script>
+</body>
+</html>
