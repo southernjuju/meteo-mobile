@@ -393,8 +393,13 @@ function updateClock(){
   const dateEl=document.getElementById('clock-date');
   if(dateEl) dateEl.textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();
 }
-setInterval(updateClock,60000);
-updateClock();
+function scheduleClock(){
+  updateClock();
+  const now=new Date();
+  const msToNextMinute=(60-now.getSeconds())*1000-now.getMilliseconds();
+  setTimeout(()=>{ updateClock(); setInterval(updateClock,60000); }, msToNextMinute);
+}
+scheduleClock();
 
 // Auto refresh
 setInterval(async()=>{if(getAccessToken())await loadDashboard();},5*60*1000);
