@@ -300,14 +300,6 @@ function renderDashboard(devices,meteo){
     const d=mod.dashboard_data||{};
     if(mod.type==='NAModule1'){ outdoorTemp=d.Temperature; outdoorHum=d.Humidity; }
   }
-  if(outdoorTemp!=null){
-    document.getElementById('out-temp').innerHTML=fmt(outdoorTemp)+'<span>°C</span>';
-    const fl=feelsLike(outdoorTemp,outdoorHum,outdoorWindSpeed);
-    const feelsEl=document.getElementById('out-feels');
-    if(fl!==fmt(outdoorTemp)) feelsEl.textContent='Ressenti '+fl+'°';
-    else feelsEl.textContent='';
-  }
-
   // Build cells
   const cells=[];
   // Indoor
